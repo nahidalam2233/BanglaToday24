@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "Bookmark": {
+      "title": "Bookmark",
+      "description": "A saved news article bookmarked by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the bookmark"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the owner who bookmarked this article"
+        },
+        "title": {
+          "type": "string",
+          "description": "Headline of the article"
+        },
+        "url": {
+          "type": "string",
+          "description": "Web URL of the article on banglatoday24.xyz"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the bookmark was created"
+        }
+      },
+      "required": ["userId", "title", "url"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": {
+        "$ref": "#/entities/Bookmark"
+      },
+      "description": "User specific collection of saved news articles"
+    }
+  }
+}
