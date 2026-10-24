@@ -1,6 +1,8 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Bangla Today",
+  "description": "Bangla Today 24 (banglatoday24.xyz) news portal app with web reader, offline bookmarks, categories, and push notifications.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

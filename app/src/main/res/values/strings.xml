@@ -1,3 +1,6 @@
 <resources>
-    <string name="app_name">My Application</string>
+    <string name="app_name">Bangla Today</string>
+    <string name="news_channel_name">Bangla Today News</string>
+    <string name="news_channel_description">Notifications for breaking news and updates from Bangla Today</string>
+    <string name="default_web_client_id">534149588937-0dhnkjrtfialm6rut59deg5cno2slv42.apps.googleusercontent.com</string>
 </resources>
