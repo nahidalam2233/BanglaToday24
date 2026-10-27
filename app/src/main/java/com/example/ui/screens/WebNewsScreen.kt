@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -44,7 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.data.model.NewsCategories
 import com.example.data.preferences.AppPreferences
 import com.example.ui.components.CategoryBar
@@ -72,7 +76,7 @@ fun WebNewsScreen(
     var showRestoredBanner by remember { mutableStateOf(false) }
 
     var currentUrl by remember { mutableStateOf(initialUrl) }
-    var pageTitle by remember { mutableStateOf("Bangla Today 24") }
+    var pageTitle by remember { mutableStateOf("বাংলা টুডে ২৪") }
     var progress by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var hasError by remember { mutableStateOf(false) }
@@ -89,19 +93,17 @@ fun WebNewsScreen(
             showRestoredBanner = false
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(
-                message = "কোনো ইন্টারনেট সংযোগ নেই • আপনি অফলাইন মোডে আছেন",
+                message = "কোনো ইন্টারনেট সংযোগ নেই • অফলাইন মোডে আছেন",
                 actionLabel = "ঠিক আছে",
                 duration = SnackbarDuration.Short
             )
         } else {
-            // Connection is active or restored
             hasError = false
             errorMsg = ""
             if (wasOffline) {
                 wasOffline = false
                 showRestoredBanner = true
 
-                // Automatically reload the connected website
                 webViewInstance?.let { wv ->
                     if (wv.url.isNullOrBlank()) {
                         wv.loadUrl(currentUrl)
@@ -112,7 +114,7 @@ fun WebNewsScreen(
 
                 snackbarHostState.currentSnackbarData?.dismiss()
                 snackbarHostState.showSnackbar(
-                    message = "ইন্টারনেট সংযোগ ফিরে এসেছে! banglatoday24.xyz পুনরায় লোড হচ্ছে...",
+                    message = "ইন্টারনেট সংযোগ ফিরে এসেছে!",
                     duration = SnackbarDuration.Short
                 )
 
@@ -129,43 +131,59 @@ fun WebNewsScreen(
 
     Scaffold(
         topBar = {
-            NewsTopAppBar(
-                title = pageTitle,
-                url = currentUrl,
-                progress = progress,
-                isLoading = isLoading,
-                isBookmarked = isBookmarked,
-                onBookmarkToggle = {
-                    if (isBookmarked) {
-                        preferences.removeBookmark(currentUrl)
-                        scope.launch {
-                            snackbarHostState.showSnackbar("সংবাদ সংরক্ষণ থেকে সরানো হয়েছে")
+            Column(modifier = Modifier.fillMaxWidth()) {
+                NewsTopAppBar(
+                    title = pageTitle,
+                    url = currentUrl,
+                    progress = progress,
+                    isLoading = isLoading,
+                    isBookmarked = isBookmarked,
+                    onBookmarkToggle = {
+                        if (isBookmarked) {
+                            preferences.removeBookmark(currentUrl)
+                            scope.launch {
+                                snackbarHostState.showSnackbar("সংবাদ সংরক্ষণ থেকে সরানো হয়েছে")
+                            }
+                        } else {
+                            preferences.addBookmark(
+                                title = if (pageTitle.isNotBlank()) pageTitle else "বাংলা টুডে সংবাদ",
+                                url = currentUrl
+                            )
+                            scope.launch {
+                                snackbarHostState.showSnackbar("সংবাদ সফলভাবে সংরক্ষিত হয়েছে!")
+                            }
                         }
-                    } else {
-                        preferences.addBookmark(
-                            title = if (pageTitle.isNotBlank()) pageTitle else "বাংলা টুডে সংবাদ",
-                            url = currentUrl
-                        )
-                        scope.launch {
-                            snackbarHostState.showSnackbar("সংবাদ সফলভাবে সংরক্ষিত হয়েছে!")
+                    },
+                    onShare = {
+                        shareArticle(context, pageTitle, currentUrl)
+                    },
+                    onRefresh = {
+                        hasError = false
+                        isLoading = true
+                        progress = 20
+                        if (webViewInstance?.url.isNullOrBlank()) {
+                            webViewInstance?.loadUrl(currentUrl)
+                        } else {
+                            webViewInstance?.reload()
                         }
+                    },
+                    onOpenExternal = {
+                        openInBrowser(context, currentUrl)
                     }
-                },
-                onShare = {
-                    shareArticle(context, pageTitle, currentUrl)
-                },
-                onRefresh = {
-                    hasError = false
-                    if (webViewInstance?.url.isNullOrBlank()) {
-                        webViewInstance?.loadUrl(currentUrl)
-                    } else {
-                        webViewInstance?.reload()
-                    }
-                },
-                onOpenExternal = {
-                    openInBrowser(context, currentUrl)
-                }
-            )
+                )
+
+                CategoryBar(
+                    selectedCategoryUrl = currentUrl,
+                    onCategorySelected = { category ->
+                        hasError = false
+                        currentUrl = category.url
+                        isLoading = true
+                        progress = 25
+                        webViewInstance?.loadUrl(category.url)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.fillMaxSize()
@@ -188,7 +206,7 @@ fun WebNewsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -196,12 +214,12 @@ fun WebNewsScreen(
                             imageVector = Icons.Default.WifiOff,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "কোনো ইন্টারনেট সংযোগ নেই • অফলাইন মোড",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             color = Color.White
                         )
                     }
@@ -215,13 +233,13 @@ fun WebNewsScreen(
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Surface(
-                    color = Color(0xFF00796B), // News Emerald Green
+                    color = Color(0xFF00796B),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -229,30 +247,19 @@ fun WebNewsScreen(
                             imageVector = Icons.Default.Wifi,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "ইন্টারনেট সংযোগ ফিরে এসেছে • banglatoday24.xyz লোড হচ্ছে...",
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "ইন্টারনেট সংযোগ ফিরে এসেছে",
+                            style = MaterialTheme.typography.labelSmall,
                             color = Color.White
                         )
                     }
                 }
             }
 
-            CategoryBar(
-                selectedCategoryUrl = currentUrl,
-                onCategorySelected = { category ->
-                    hasError = false
-                    currentUrl = category.url
-                    webViewInstance?.loadUrl(category.url)
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
             Box(modifier = Modifier.fillMaxSize()) {
-                // NewsWebView is always kept in composition to maintain active connection and cache
                 NewsWebView(
                     url = currentUrl,
                     onWebViewCreated = { wv ->
@@ -286,14 +293,31 @@ fun WebNewsScreen(
                                 webViewInstance?.reload()
                             } else {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = "এখনও কোনো ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ পরীক্ষা করুন।",
-                                        duration = SnackbarDuration.Short
-                                    )
+                                    snackbarHostState.showSnackbar("দয়া করে ইন্টারনেট সংযোগ চালু করুন")
                                 }
                             }
                         },
-                        onOpenBookmarks = onNavigateToBookmarks
+                        onOpenBookmarks = onNavigateToBookmarks,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // Dynamic Floating Scroll-to-Top button
+                FloatingActionButton(
+                    onClick = {
+                        webViewInstance?.scrollTo(0, 0)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 12.dp, bottom = 12.dp)
+                        .size(36.dp),
+                    containerColor = colorResource(R.color.news_primary).copy(alpha = 0.85f),
+                    contentColor = Color.White
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = "শীর্ষে যান",
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -303,18 +327,14 @@ fun WebNewsScreen(
 
 private fun shareArticle(context: Context, title: String, url: String) {
     try {
-        val sendIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(
-                Intent.EXTRA_TEXT,
-                "$title\n\nবিস্তারিত পড়ুন বাংলা টুডে ২৪-এ:\n$url"
-            )
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, title)
+            putExtra(Intent.EXTRA_TEXT, "$title\n\nবিস্তারিত পড়ুন বাংলা টুডে ২৪-এ:\n$url")
         }
-        val shareIntent = Intent.createChooser(sendIntent, "সংবাদ শেয়ার করুন")
-        context.startActivity(shareIntent)
+        context.startActivity(Intent.createChooser(shareIntent, "সংবাদ শেয়ার করুন"))
     } catch (e: Exception) {
-        e.printStackTrace()
+        // Fallback
     }
 }
 
@@ -323,6 +343,6 @@ private fun openInBrowser(context: Context, url: String) {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
         context.startActivity(intent)
     } catch (e: Exception) {
-        e.printStackTrace()
+        // Fallback
     }
 }

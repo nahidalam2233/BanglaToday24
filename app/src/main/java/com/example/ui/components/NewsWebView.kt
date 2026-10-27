@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
@@ -43,12 +44,13 @@ fun NewsWebView(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
 
+            // Hardware layer acceleration for ultra-fast rendering & 60fps scrolling
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
             // Enable third-party cookies for modern news portals, CDNs, and media
             val cookieManager = CookieManager.getInstance()
             cookieManager.setAcceptCookie(true)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                cookieManager.setAcceptThirdPartyCookies(this, true)
-            }
+            cookieManager.setAcceptThirdPartyCookies(this, true)
 
             settings.apply {
                 javaScriptEnabled = true
@@ -59,13 +61,23 @@ fun NewsWebView(
                 setSupportZoom(true)
                 builtInZoomControls = true
                 displayZoomControls = false
+
+                // Maximum speed & caching optimizations
                 cacheMode = WebSettings.LOAD_DEFAULT
+                loadsImagesAutomatically = true
+                blockNetworkImage = false
+
+                // Pre-rasterize offscreen content to avoid white flashes during fast scrolling
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    offscreenPreRaster = true
+                }
+
                 allowFileAccess = false
                 allowContentAccess = true
                 javaScriptCanOpenWindowsAutomatically = true
                 mediaPlaybackRequiresUserGesture = false
 
-                // Use standard mobile Chrome user agent so modern web apps render seamlessly
+                // Optimized Mobile Chrome User-Agent
                 val defaultUa = userAgentString
                 userAgentString = defaultUa.replace("; wv", "").replace("Version/4.0 ", "")
 
@@ -73,9 +85,7 @@ fun NewsWebView(
                     safeBrowsingEnabled = false
                 }
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                }
+                mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             }
 
             webViewClient = object : WebViewClient() {
@@ -89,9 +99,9 @@ fun NewsWebView(
                     if (scheme == "http" || scheme == "https") {
                         val host = targetUri.host ?: ""
                         if (host.contains("banglatoday24.xyz") || host.contains("banglatoday.xyz")) {
-                            return false // Always load inside webview
+                            return false // Fast in-app loading
                         } else {
-                            // External domain (e.g. YouTube, social, external ad) -> Open in external browser
+                            // External links (social, ads, youtube) open in system browser
                             return try {
                                 val intent = Intent(Intent.ACTION_VIEW, targetUri)
                                 context.startActivity(intent)
@@ -100,7 +110,7 @@ fun NewsWebView(
                                 false
                             }
                         }
-                    } else if (scheme == "tel" || scheme == "mailto" || scheme == "sms" || scheme == "whatsapp") {
+                    } else if (scheme in listOf("tel", "mailto", "sms", "whatsapp")) {
                         return try {
                             val intent = Intent(Intent.ACTION_VIEW, targetUri)
                             context.startActivity(intent)
@@ -122,6 +132,11 @@ fun NewsWebView(
                     super.onPageFinished(view, url)
                     url?.let { onUrlChanged(it) }
                     view?.title?.let { onTitleChanged(it) }
+                    // Inject smooth scrolling
+                    view?.evaluateJavascript(
+                        "(function(){ document.documentElement.style.scrollBehavior = 'smooth'; })();",
+                        null
+                    )
                 }
 
                 override fun onReceivedError(
@@ -141,7 +156,6 @@ fun NewsWebView(
                     handler: SslErrorHandler?,
                     error: SslError?
                 ) {
-                    // Allow navigation to proceed on certificate warnings or proxy environments
                     handler?.proceed()
                 }
             }
@@ -158,7 +172,6 @@ fun NewsWebView(
                 }
             }
 
-            // Immediately load target URL upon initial instantiation
             loadUrl(url)
         }
     }
@@ -171,18 +184,19 @@ fun NewsWebView(
     }
 
     AndroidView(
-        factory = {
-            webView.apply {
-                if (this.url.isNullOrBlank()) {
-                    loadUrl(url)
-                }
-            }
-        },
+        factory = { webView },
         update = { wv ->
-            if (wv.url != url && !url.isNullOrBlank()) {
+            val currentWebUrl = wv.url ?: ""
+            if (url.isNotBlank() && currentWebUrl != url && !urlsEquivalent(currentWebUrl, url)) {
                 wv.loadUrl(url)
             }
         },
         modifier = modifier.fillMaxSize()
     )
+}
+
+private fun urlsEquivalent(u1: String, u2: String): Boolean {
+    val clean1 = u1.trimEnd('/')
+    val clean2 = u2.trimEnd('/')
+    return clean1.equals(clean2, ignoreCase = true)
 }
