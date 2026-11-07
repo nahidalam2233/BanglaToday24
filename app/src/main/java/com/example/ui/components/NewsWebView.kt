@@ -132,9 +132,20 @@ fun NewsWebView(
                     super.onPageFinished(view, url)
                     url?.let { onUrlChanged(it) }
                     view?.title?.let { onTitleChanged(it) }
-                    // Inject smooth scrolling
+                    // Inject smooth scrolling and ultra-slim ticker border styling
                     view?.evaluateJavascript(
-                        "(function(){ document.documentElement.style.scrollBehavior = 'smooth'; })();",
+                        """
+                        (function(){
+                            document.documentElement.style.scrollBehavior = 'smooth';
+                            var style = document.getElementById('bt24-custom-style');
+                            if (!style) {
+                                style = document.createElement('style');
+                                style.id = 'bt24-custom-style';
+                                style.innerHTML = '.scroll, .scroll_01, .scroll_02, .footer-scroll, .footer-scroll_01, .ticker { border-top: 0.5px solid rgba(0,0,0,0.15) !important; border-bottom: 0.5px solid rgba(0,0,0,0.15) !important; box-shadow: none !important; }';
+                                document.head.appendChild(style);
+                            }
+                        })();
+                        """.trimIndent(),
                         null
                     )
                 }

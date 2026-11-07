@@ -9,6 +9,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,6 +74,7 @@ import com.example.data.model.NewsCategories
 import com.example.data.model.NewsNotificationItem
 import com.example.data.preferences.AppPreferences
 import com.example.fcm.NotificationHelper
+import com.example.sync.NewsAutoUpdateNotifier
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -368,6 +370,82 @@ fun NotificationCenterScreen(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("টেস্ট পাঠান")
                             }
+                        }
+                    }
+                }
+            }
+
+            // 2.5. Live Website Auto-Notification Sync Card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF2E7D32)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "লাইভ ওয়েবসাইট অটো নোটিফিকেশন",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "banglatoday24.xyz লাইভ সিঙ্ক সক্রিয়",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "ওয়েবসাইটে যেকোনো নতুন সংবাদ পোস্ট হওয়ার সাথে সাথে স্বয়ংক্রিয়ভাবে ফোনে নোটিফিকেশন পৌঁছে যাবে।",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Button(
+                            onClick = {
+                                NewsAutoUpdateNotifier.checkForNewPosts(context) { count ->
+                                    if (count > 0) {
+                                        Toast.makeText(context, "$count টি নতুন সংবাদ পাওয়া গেছে ও নোটিফাই করা হয়েছে!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "কোনো নতুন সংবাদ পাওয়া যায়নি, সবশেষ সংবাদ আপডেট রয়েছে।", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1B5E20)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().height(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("এখনই নতুন নিউজ চেক করুন")
                         }
                     }
                 }

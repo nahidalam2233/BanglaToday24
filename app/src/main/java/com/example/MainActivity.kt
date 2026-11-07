@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -65,6 +66,7 @@ import androidx.core.content.ContextCompat
 import com.example.data.model.NewsCategories
 import com.example.data.preferences.AppPreferences
 import com.example.fcm.NotificationHelper
+import com.example.sync.NewsAutoUpdateNotifier
 import com.example.ui.screens.BookmarksScreen
 import com.example.ui.screens.NotificationCenterScreen
 import com.example.ui.screens.SettingsScreen
@@ -100,7 +102,11 @@ class MainActivity : ComponentActivity() {
         NotificationHelper.subscribeTopic("breaking")
         NotificationHelper.subscribeTopic("news")
 
-        // 3. Process launch Intent (from notification or deep link)
+        // 3. Automated news check: check for newly published website articles & schedule background worker
+        NewsAutoUpdateNotifier.checkForNewPosts(this)
+        NewsAutoUpdateNotifier.schedulePeriodicCheck(this)
+
+        // 4. Process launch Intent (from notification or deep link)
         extractUrlFromIntent(intent)
 
         setContent {
@@ -151,6 +157,7 @@ fun MainAppScreen(
     ) { isGranted ->
         if (isGranted) {
             NotificationHelper.syncFcmToken(context)
+            NewsAutoUpdateNotifier.checkForNewPosts(context)
         }
     }
 
@@ -224,7 +231,12 @@ fun MainAppScreen(
                     )
                 }
                 MainNavTab.SETTINGS -> {
-                    SettingsScreen()
+                    SettingsScreen(
+                        onOpenUrl = { url ->
+                            onUrlHandled(url)
+                            currentTab = MainNavTab.NEWS
+                        }
+                    )
                 }
             }
         }
@@ -243,80 +255,90 @@ fun SlimBottomBar(
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp,
+        shadowElevation = 0.dp,
         modifier = modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .height(44.dp)
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceAround
-        ) {
-            MainNavTab.entries.forEach { tab ->
-                val selected = currentTab == tab
-                val tint = if (selected) brandRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Ultra-slim hairline top border (0.5dp) replacing the heavy dark ticker shadow
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
+            )
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            onTabSelected(tab)
-                        }
-                        .padding(vertical = 1.dp)
-                        .testTag(tab.testTag)
-                ) {
-                    BadgedBox(
-                        badge = {
-                            if (tab == MainNavTab.BOOKMARKS && bookmarkCount > 0) {
-                                Badge(
-                                    containerColor = brandRed,
-                                    contentColor = Color.White
-                                ) {
-                                    Text(
-                                        text = "$bookmarkCount",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp)
-                                    )
-                                }
-                            } else if (tab == MainNavTab.NOTIFICATIONS && notificationCount > 0) {
-                                Badge(
-                                    containerColor = brandRed,
-                                    contentColor = Color.White
-                                ) {
-                                    Text(
-                                        text = "$notificationCount",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp)
-                                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .height(43.dp)
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                MainNavTab.entries.forEach { tab ->
+                    val selected = currentTab == tab
+                    val tint = if (selected) brandRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                onTabSelected(tab)
+                            }
+                            .padding(vertical = 1.dp)
+                            .testTag(tab.testTag)
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (tab == MainNavTab.BOOKMARKS && bookmarkCount > 0) {
+                                    Badge(
+                                        containerColor = brandRed,
+                                        contentColor = Color.White
+                                    ) {
+                                        Text(
+                                            text = "$bookmarkCount",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp)
+                                        )
+                                    }
+                                } else if (tab == MainNavTab.NOTIFICATIONS && notificationCount > 0) {
+                                    Badge(
+                                        containerColor = brandRed,
+                                        contentColor = Color.White
+                                    ) {
+                                        Text(
+                                            text = "$notificationCount",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp)
+                                        )
+                                    }
                                 }
                             }
+                        ) {
+                            Icon(
+                                imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = tab.labelBn,
+                                tint = tint,
+                                modifier = Modifier.size(19.dp)
+                            )
                         }
-                    ) {
-                        Icon(
-                            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                            contentDescription = tab.labelBn,
-                            tint = tint,
-                            modifier = Modifier.size(19.dp)
+
+                        Text(
+                            text = tab.labelBn,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            ),
+                            color = tint,
+                            maxLines = 1
                         )
                     }
-
-                    Text(
-                        text = tab.labelBn,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                        ),
-                        color = tint,
-                        maxLines = 1
-                    )
                 }
             }
         }

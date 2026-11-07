@@ -176,6 +176,23 @@ class AppPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_TOPIC_ALL, enabled).apply()
     }
 
+    // --- Auto Notification for New Website News ---
+    private val _autoNotifyEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_NOTIFY, true))
+    val autoNotifyEnabled: StateFlow<Boolean> = _autoNotifyEnabled.asStateFlow()
+
+    fun setAutoNotifyEnabled(enabled: Boolean) {
+        _autoNotifyEnabled.value = enabled
+        prefs.edit().putBoolean(KEY_AUTO_NOTIFY, enabled).apply()
+    }
+
+    fun getLastSeenPostId(): Long {
+        return prefs.getLong(KEY_LAST_SEEN_POST_ID, 0L)
+    }
+
+    fun saveLastSeenPostId(id: Long) {
+        prefs.edit().putLong(KEY_LAST_SEEN_POST_ID, id).apply()
+    }
+
     companion object {
         private const val KEY_BOOKMARKS = "bookmarks"
         private const val KEY_NOTIFICATIONS = "notifications"
@@ -184,6 +201,8 @@ class AppPreferences(context: Context) {
         private const val KEY_TOPIC_NATIONAL = "topic_national"
         private const val KEY_TOPIC_SPORTS = "topic_sports"
         private const val KEY_TOPIC_ALL = "topic_all"
+        private const val KEY_AUTO_NOTIFY = "auto_notify_new_news"
+        private const val KEY_LAST_SEEN_POST_ID = "last_seen_post_id"
 
         @Volatile
         private var INSTANCE: AppPreferences? = null
